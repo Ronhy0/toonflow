@@ -70,8 +70,8 @@
 
 在安装和使用本软件之前，请准备以下内容：
 
-- ✅ Node.js `>= 18`
-- ✅ npm `>= 9`
+- ✅ Node.js：README 最低为 **18**；当前前端（Nuxt 3.21+）的 `engines` 要求 **`^20.19.0` 或 `>=22.12.0`**，建议使用 **Node 22 LTS** 以免 `npm ci` / `nuxt prepare` 失败。
+- ✅ npm `>= 9`（随 Node 发行版附带即可）
 
 ## 本机安装
 
@@ -95,6 +95,58 @@
 > 账号：`手机号`　｜　密码：`随便设置`  
 > 没有任何验证本地登录，所以手机密码随便设置
 
+> 📌 **使用 AI 剧本 / 小说转剧本 / 分镜与配图等功能前**，必须在个人中心完成「模型设置」并绑定场景，详见下文 [大模型与 API Key 配置](#大模型与-api-key-配置)。
+
+## 大模型与 API Key 配置
+
+本项目的 AI 能力（对话、剧本生成、小说 Agent、分镜与封面等）**依赖真实的大模型 HTTP API**。仓库**不包含**任何厂商自带的 API Key，也**不在** `.env` 中预置可开箱即用的 LLM 密钥；你需要自行准备 Key，并在应用内完成配置。
+
+### 工作原理概览
+
+1. **按用户存储**：每个登录用户在「模型设置」里添加一条或多条模型配置（文字模型 `text`、图片模型 `image`），其中 **API Key、Base URL、模型 ID** 等为必填项。
+2. **场景绑定**：仅有模型记录不够，还需要把模型绑定到具体业务场景（例如「剧本生成 / 文字」对应 `script_gen`，「生图」对应 `image_gen`）。未绑定或解密失败时，相关接口会返回提示，要求先到模型设置中配置。
+3. **调用时组装配置**：后端从数据库读取你的模型与绑定关系，解密 API Key 后，组装成与内部 `ai_chat` 模块一致的结构，再通过 [Vercel AI SDK](https://ai-sdk.dev/)（`@ai-sdk/deepseek` / `@ai-sdk/openai`）发起请求。
+4. **与「加密主密钥」的区别**：`storyweaver-api/config/config.default.js` 中的 `config.encryption.secret` 用于 **AES 加密存储在数据库里的用户模型 API Key**，不是大模型厂商的 Key。私有化部署时请改为强随机串，并勿提交到公开仓库。
+
+### 在前端如何操作
+
+1. 使用本地或 Docker 方式启动服务并完成登录（见上文「首次登录」）。
+2. 进入 **个人中心 → 模型设置**（对应前端页面 `storyweaver-web/pages/user/model-config.vue`）。
+3. **新增模型**：选择类型（文字 / 图片），填写名称、**API Key**、**Base URL**、**模型 ID**（Model），可按需调整 `max_tokens`、温度等。
+4. **场景绑定**：在界面中将「剧本生成 / 文字」绑定到你的文字模型，将「配图 / 生图」等绑定到图片模型（具体文案以界面为准）。保存后，各 AI 功能才会使用该 Key 调用对应服务商。
+
+### 填写说明（文字模型）
+
+| 字段 | 说明 |
+| --- | --- |
+| **API Key** | 服务商控制台发放的密钥，服务端会加密后写入数据库。 |
+| **Base URL** | 兼容 OpenAI API 的网关地址（须带协议，如 `https://api.deepseek.com` 或自建代理根地址）。 |
+| **模型 ID** | 服务商文档中的模型名（如 `deepseek-chat`、`gpt-4o` 等）。 |
+
+后端对「提供商标识」的处理逻辑简述：**名称为 `deepseek` 的提供商**会走 DeepSeek 官方 SDK 路径；**其它标识**会走 **OpenAI 兼容** 客户端（`createOpenAI` + 你填写的 `baseURL`），便于对接 One API、Azure OpenAI 兼容网关、本地 vLLM 等。
+
+### 填写说明（图片模型）
+
+除 Key、Base URL、模型名外，还可通过扩展字段配置尺寸等（具体以模型设置页为准）。生图相关接口会从 `image_gen` 场景绑定中读取解密后的 Key 与参数。
+
+### 后端与接口（二次开发参考）
+
+- **控制器**：`storyweaver-api/app/controller/api/modelConfig.js`（列表、创建、更新、删除、测试连接、场景绑定等）。
+- **业务服务**：`storyweaver-api/app/service/api/modelConfig.js`（含 `getEffectiveAiConfig`：按用户与场景返回有效配置或 `null`）。
+- **数据表**：`user_model`（模型与加密后的 `api_key`）、`user_model_scene`（用户与场景、模型 ID 的绑定）。模型定义见 `storyweaver-api/app/model/user_model.js`。
+- **实际请求**：`storyweaver-api/app/lib/ai_chat.js`（根据配置选择 DeepSeek 或 OpenAI 兼容通道）。
+
+业务控制器（如剧本生成 `scriptGenerate.js`）在调用 AI 前会取 `getEffectiveAiConfig`；若返回空，会提示 **「请先在模型设置中配置并绑定文字模型」**（错误码等业务细节以接口为准）。
+
+### 安全建议
+
+- 生产环境务必修改默认的 `config.encryption.secret` 与 JWT、数据库等敏感配置（通过 `config.local.js` / 环境变量等你已在用的 Egg 配置方式覆盖，勿把真实密钥写入 Git）。
+- API Key 仅保存在服务端数据库中且为密文；前端编辑时按掩码展示，请勿在浏览器控制台或日志中明文打印 Key。
+
+### 关于「全站默认 Key」
+
+当前开源版本的设计是 **「谁使用谁配置自己的 Key」**，代码路径中**没有**「未绑定时自动回退到环境变量里的平台统一 Key」的逻辑。若你希望企业内网统一部署一套默认模型，需要在后端增加一层配置（例如从环境变量组装默认 `ai` 配置），并在 `getEffectiveAiConfig` 返回 `null` 时合并该默认项；这属于二次开发扩展，本 README 不展开实现细节。
+
 ## Docker 部署
 
 ### 前置条件
@@ -111,6 +163,17 @@
 - 采用 `localhost` 模式启动后端，使用 SQLite 持久化数据
 - 前端在镜像构建阶段静态生成，并拷贝到 `storyweaver-api/web`
 - 前台页面、后端 API、管理后台统一走同一个地址
+
+### 基础镜像（Docker Hub 拉取失败时）
+
+构建默认使用 **AWS Public ECR** 上的官方 Node 镜像（`public.ecr.aws/docker/library/node:20-bookworm-slim`），与 Docker Hub `library/node` 同源，可避免访问 `auth.docker.io` 时出现 `connection reset` / token 失败。
+
+若你希望仍从 Docker Hub 拉取，在构建前执行：
+
+```shell
+export TOONFLOW_NODE_IMAGE=node:20-bookworm-slim
+docker compose up -d --build
+```
 
 ### 运行前说明
 
@@ -219,8 +282,9 @@ docker exec -it storyweaver-app sh
 
 ## 开发环境准备
 
-- **Node.js**：版本要求 18 及以上
-- **npm**：推荐最新版
+- **Node.js**：18 为历史最低说明；**实际开发与安装依赖请使用 Node 20.19+ 或 22 LTS**（与 Nuxt / Vite 工具链一致）。
+- **npm**：推荐随 Node 自带的当前主版本。
+- **Linux 仅跑 Electron 桌面端时**：需系统图形栈相关库（如 `libatk`、`gtk3` 等）；无图形环境可只跑 `storyweaver-api` + `storyweaver-web` 或 Docker。
 
 ## 快速启动项目
 

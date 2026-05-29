@@ -403,59 +403,338 @@ const imageModels = computed(() => allModels.value.filter(m => m.type === 'image
 const currentTabModels = computed(() => activeTab.value === 'text' ? textModels.value : imageModels.value)
 
 /* ========== 提供商 & 模型标识数据 ========== */
+/* 预设 baseUrl / 模型 ID 以各平台文档为准；非 DeepSeek 时后端走 OpenAI 兼容通道（Azure 需替换 YOUR_RESOURCE） */
 const providerOptions = [
   { value: 'deepseek', label: 'DeepSeek', baseUrl: 'https://api.deepseek.com' },
-  { value: 'doubao', label: '豆包', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3' },
+  { value: 'doubao', label: '豆包（火山方舟）', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3' },
+  { value: 'qwen', label: '通义千问（DashScope）', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+  { value: 'zhipu', label: '智谱 GLM', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+  { value: 'moonshot', label: '月之暗面 Kimi', baseUrl: 'https://api.moonshot.cn/v1' },
+  { value: 'minimax', label: 'MiniMax', baseUrl: 'https://api.minimax.chat/v1' },
+  { value: 'siliconflow', label: '硅基流动 SiliconFlow', baseUrl: 'https://api.siliconflow.cn/v1' },
+  { value: 'qianfan', label: '百度千帆（文心）', baseUrl: 'https://qianfan.baidubce.com/v2' },
   { value: 'openai', label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
-  { value: 'qwen', label: '千问', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
-  { value: 'zhipu', label: '智谱', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
-  { value: 'gemini', label: 'Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai' },
-  { value: 'anthropic', label: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1' },
+  { value: 'azure', label: 'Azure OpenAI', baseUrl: 'https://YOUR_RESOURCE.openai.azure.com/openai/v1' },
+  { value: 'gemini', label: 'Google Gemini（兼容）', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai' },
+  { value: 'groq', label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1' },
+  { value: 'mistral', label: 'Mistral AI', baseUrl: 'https://api.mistral.ai/v1' },
+  { value: 'xai', label: 'xAI Grok', baseUrl: 'https://api.x.ai/v1' },
+  { value: 'together', label: 'Together AI', baseUrl: 'https://api.together.xyz/v1' },
+  { value: 'fireworks', label: 'Fireworks AI', baseUrl: 'https://api.fireworks.ai/inference/v1' },
+  { value: 'hunyuan', label: '腾讯混元', baseUrl: 'https://api.hunyuan.cloud.tencent.com/v1' },
+  { value: 'stepfun', label: '阶跃星辰 StepFun', baseUrl: 'https://api.stepfun.com/v1' },
+  { value: 'baichuan', label: '百川智能', baseUrl: 'https://api.baichuan-ai.com/v1' },
+  { value: 'novita', label: 'Novita AI', baseUrl: 'https://api.novita.ai/v3/openai' },
+  { value: 'perplexity', label: 'Perplexity', baseUrl: 'https://api.perplexity.ai' },
+  { value: 'nebius', label: 'Nebius AI Studio', baseUrl: 'https://api.studio.nebius.ai/v1' },
+  { value: 'openrouter', label: 'OpenRouter（聚合）', baseUrl: 'https://openrouter.ai/api/v1' },
+  { value: 'anthropic', label: 'Claude（OpenRouter）', baseUrl: 'https://openrouter.ai/api/v1' },
   { value: 'custom', label: '自定义', baseUrl: '' },
 ]
 
-/** 各提供商收录的模型标识，按类型区分（数据来源：Toonflow） */
+/**
+ * 各厂商主力模型快捷选项（文本 / 图像分开）
+ * 豆包 / 方舟等为 Endpoint ID，以火山控制台为准；Azure 须将 baseUrl 中 YOUR_RESOURCE 换成实际资源名。
+ * Anthropic 官方非 OpenAI 协议，此处与 OpenRouter 同域，模型 ID 使用路由前缀形式。
+ * 另含：腾讯混元、阶跃星辰、百川、Novita、Perplexity、Nebius 等 OpenAI 兼容端点，具体模型名以各厂商控制台为准。
+ */
 const providerModels = {
   deepseek: {
-    text: ['deepseek-chat', 'deepseek-reasoner'],
+    text: [
+      'deepseek-chat',
+      'deepseek-reasoner',
+    ],
     image: [],
   },
   doubao: {
     text: [
-      'doubao-seed-1-8-251228', 'doubao-seed-1-6-251015',
-      'doubao-seed-1-6-lite-251015', 'doubao-seed-1-6-flash-250828',
+      'doubao-seed-1-8-251228',
+      'doubao-seed-1-6-251015',
+      'doubao-seed-1-6-lite-251015',
+      'doubao-seed-1-6-flash-250828',
     ],
-    image: ['doubao-seedream-4-5-251128', 'doubao-seedream-4-0-250828'],
-  },
-  openai: {
-    text: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1'],
-    image: ['dall-e-3'],
+    image: [
+      'doubao-seedream-4-5-251128',
+      'doubao-seedream-4-0-250828',
+    ],
   },
   qwen: {
     text: [
-      'qwen-vl-max', 'qwen-plus-latest', 'qwen-max',
-      'qwen2.5-72b-instruct', 'qwen2.5-14b-instruct-1m', 'qwen2.5-vl-72b-instruct',
+      'qwen3.6-plus',
+      'qwen3-max',
+      'qwen3-coder-plus',
+      'qwen-plus',
+      'qwen-plus-latest',
+      'qwen-turbo',
+      'qwen-long',
+      'qwen-max',
+      'qwen-vl-max',
+      'qwen-vl-plus',
     ],
-    image: ['wanx2.1-t2i-turbo', 'wanx-v1'],
+    image: [
+      'wanx2.1-t2i-turbo',
+      'wanx-v1',
+    ],
   },
   zhipu: {
     text: [
-      'glm-4.7', 'glm-4.7-flashx', 'glm-4.6', 'glm-4.5-air', 'glm-4.5-airx',
-      'glm-4-long', 'glm-4-flashx-250414', 'glm-4.7-flash', 'glm-4.5-flash', 'glm-4-flash-250414',
+      'glm-4.7',
+      'glm-4.7-flashx',
+      'glm-4.7-flash',
+      'glm-4.6',
+      'glm-4.5-air',
+      'glm-4.5-airx',
+      'glm-4.5-flash',
+      'glm-4-long',
+      'glm-4-flashx-250414',
+      'glm-4-flash-250414',
     ],
-    image: ['cogview-4-250304', 'cogview-4-flash'],
+    image: [
+      'cogview-4-plus',
+      'cogview-4-250304',
+      'cogview-4-flash',
+    ],
+  },
+  moonshot: {
+    text: [
+      'kimi-k2-turbo-preview',
+      'kimi-k2-0711-preview',
+      'moonshot-v1-128k',
+      'moonshot-v1-32k',
+      'moonshot-v1-8k',
+    ],
+    image: [],
+  },
+  minimax: {
+    text: [
+      'MiniMax-M2',
+      'MiniMax-Text-01',
+      'abab6.5s-chat',
+      'abab6.5g-chat',
+      'abab6.5t-chat',
+    ],
+    image: [],
+  },
+  siliconflow: {
+    text: [
+      'deepseek-ai/DeepSeek-V3.2',
+      'deepseek-ai/DeepSeek-R1',
+      'Qwen/Qwen3-235B-A22B-Instruct-2507',
+      'Qwen/Qwen3-30B-A3B-Instruct-2507',
+      'meta-llama/Llama-3.3-70B-Instruct',
+      'THUDM/GLM-Z1-32B-0414',
+    ],
+    image: [
+      'black-forest-labs/FLUX.1-schnell',
+      'Qwen/Qwen-Image',
+    ],
+  },
+  qianfan: {
+    text: [
+      'ernie-4.5-turbo-128k',
+      'ernie-4.5-8k-preview',
+      'ernie-x1-turbo-32k',
+      'ernie-x1-8k-preview',
+      'ernie-4.0-turbo-8k',
+      'ernie-speed-128k',
+    ],
+    image: [
+      'irag-1.0.0',
+    ],
+  },
+  openai: {
+    text: [
+      'gpt-5.1',
+      'gpt-5.1-chat-latest',
+      'gpt-5',
+      'gpt-5-mini',
+      'gpt-5-nano',
+      'gpt-4.1',
+      'gpt-4.1-mini',
+      'gpt-4.1-nano',
+      'gpt-4o',
+      'gpt-4o-mini',
+      'o3',
+      'o4-mini',
+    ],
+    image: [
+      'gpt-image-2',
+      'gpt-image-2-2026-04-21',
+      'gpt-image-1.5',
+      'gpt-image-1',
+      'gpt-image-1-mini',
+      'dall-e-3',
+    ],
+  },
+  azure: {
+    text: [
+      'gpt-4o',
+      'gpt-4o-mini',
+      'gpt-4.1',
+      'gpt-4.1-mini',
+      'gpt-35-turbo',
+    ],
+    image: [
+      'gpt-image-2',
+      'gpt-image-1.5',
+      'gpt-image-1',
+      'dall-e-3',
+    ],
   },
   gemini: {
     text: [
-      'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash',
-      'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash',
+      'gemini-3.5-pro',
+      'gemini-3.5-flash',
+      'gemini-3-pro-preview',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
     ],
-    image: ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview'],
+    image: [
+      'gemini-3-pro-image-preview',
+      'gemini-2.5-flash-image',
+    ],
+  },
+  groq: {
+    text: [
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b',
+      'llama-3.3-70b-versatile',
+      'llama-3.1-70b-versatile',
+      'llama-3.1-8b-instant',
+      'mixtral-8x7b-32768',
+      'gemma2-9b-it',
+    ],
+    image: [],
+  },
+  mistral: {
+    text: [
+      'mistral-large-latest',
+      'mistral-medium-latest',
+      'mistral-small-latest',
+      'ministral-8b-latest',
+      'codestral-latest',
+      'pixtral-large-latest',
+    ],
+    image: [],
+  },
+  xai: {
+    text: [
+      'grok-3',
+      'grok-3-mini',
+      'grok-2-1212',
+      'grok-2-vision-1212',
+    ],
+    image: [],
+  },
+  together: {
+    text: [
+      'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+      'meta-llama/Llama-3.1-70B-Instruct-Turbo',
+      'Qwen/Qwen2.5-72B-Instruct-Turbo',
+      'deepseek-ai/DeepSeek-R1-Distill-Llama-70B',
+    ],
+    image: [],
+  },
+  fireworks: {
+    text: [
+      'accounts/fireworks/models/llama-v3p3-70b-instruct',
+      'accounts/fireworks/models/deepseek-v3',
+      'accounts/fireworks/models/qwen2p5-72b-instruct',
+    ],
+    image: [
+      'accounts/fireworks/models/flux-1-dev-fp8',
+    ],
+  },
+  hunyuan: {
+    text: [
+      'hunyuan-turbos-latest',
+      'hunyuan-turbo',
+      'hunyuan-t1-latest',
+      'hunyuan-large',
+      'hunyuan-standard-256K',
+      'hunyuan-lite',
+    ],
+    image: [],
+  },
+  stepfun: {
+    text: [
+      'step-2-16k-exp',
+      'step-2-mini',
+      'step-1-8k',
+      'step-1-32k',
+      'step-1-flash',
+    ],
+    image: [],
+  },
+  baichuan: {
+    text: [
+      'Baichuan4-Turbo',
+      'Baichuan4-Air',
+      'Baichuan3-Turbo-128k',
+      'Baichuan2-Turbo',
+    ],
+    image: [],
+  },
+  novita: {
+    text: [
+      'deepseek/deepseek_v3',
+      'deepseek/deepseek-r1',
+      'meta-llama/llama-3.3-70b-instruct',
+      'Qwen/Qwen2.5-72B-Instruct',
+      'mistralai/Mixtral-8x7B-Instruct-v0.1',
+    ],
+    image: [
+      'black-forest-labs/FLUX.1-schnell',
+    ],
+  },
+  perplexity: {
+    text: [
+      'sonar',
+      'sonar-pro',
+      'sonar-reasoning',
+      'sonar-reasoning-pro',
+    ],
+    image: [],
+  },
+  nebius: {
+    text: [
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b',
+      'meta-llama/Llama-3.3-70B-Instruct',
+      'Qwen/Qwen2.5-72B-Instruct',
+      'deepseek-ai/DeepSeek-V3',
+    ],
+    image: [],
+  },
+  openrouter: {
+    text: [
+      'anthropic/claude-sonnet-4',
+      'anthropic/claude-opus-4.1',
+      'openai/gpt-4o',
+      'openai/o3',
+      'google/gemini-2.5-pro',
+      'google/gemini-2.5-flash',
+      'deepseek/deepseek-chat',
+      'deepseek/deepseek-r1-0528',
+      'meta-llama/llama-3.3-70b-instruct',
+      'mistralai/mistral-large-2411',
+      'x-ai/grok-3',
+    ],
+    image: [
+      'google/gemini-2.5-flash-image-preview',
+      'black-forest-labs/flux-1.1-pro',
+    ],
   },
   anthropic: {
     text: [
-      'claude-opus-4-5', 'claude-sonnet-4-5', 'claude-sonnet-4-0',
-      'claude-3-7-sonnet-latest', 'claude-3-5-haiku-latest',
+      'anthropic/claude-opus-4.1',
+      'anthropic/claude-sonnet-4',
+      'anthropic/claude-3.7-sonnet',
+      'anthropic/claude-3.5-sonnet',
+      'anthropic/claude-3.5-haiku',
     ],
     image: [],
   },
@@ -464,8 +743,31 @@ const providerModels = {
 
 const providerLabel = (p) => {
   const map = {
-    deepseek: 'DeepSeek', doubao: '豆包', openai: 'OpenAI', anthropic: 'Anthropic',
-    zhipu: '智谱', qwen: '千问', gemini: 'Gemini', custom: '自定义',
+    deepseek: 'DeepSeek',
+    doubao: '豆包',
+    qwen: '千问',
+    zhipu: '智谱',
+    moonshot: 'Kimi',
+    minimax: 'MiniMax',
+    siliconflow: '硅基流动',
+    qianfan: '千帆',
+    openai: 'OpenAI',
+    azure: 'Azure',
+    gemini: 'Gemini',
+    groq: 'Groq',
+    mistral: 'Mistral',
+    xai: 'xAI',
+    together: 'Together',
+    fireworks: 'Fireworks',
+    openrouter: 'OpenRouter',
+    anthropic: 'Anthropic',
+    hunyuan: '混元',
+    stepfun: '阶跃',
+    baichuan: '百川',
+    novita: 'Novita',
+    perplexity: 'Perplexity',
+    nebius: 'Nebius',
+    custom: '自定义',
   }
   return map[p] || p
 }
@@ -1041,6 +1343,23 @@ const unbindScene = async (sceneCode) => {
 .model-card__provider-badge--zhipu { background: #ede9fe; color: #5b21b6; }
 .model-card__provider-badge--qwen { background: #dbeafe; color: #1d4ed8; }
 .model-card__provider-badge--gemini { background: #dcfce7; color: #166534; }
+.model-card__provider-badge--moonshot { background: #fce7f3; color: #831843; }
+.model-card__provider-badge--minimax { background: #e0e7ff; color: #3730a3; }
+.model-card__provider-badge--siliconflow { background: #cffafe; color: #0e7490; }
+.model-card__provider-badge--qianfan { background: #dbeafe; color: #1e40af; }
+.model-card__provider-badge--azure { background: #e8f5ff; color: #0369a1; }
+.model-card__provider-badge--groq { background: #fef9c3; color: #854d0e; }
+.model-card__provider-badge--mistral { background: #ffedd5; color: #9a3412; }
+.model-card__provider-badge--xai { background: #f3f4f6; color: #111827; }
+.model-card__provider-badge--together { background: #ede9fe; color: #5b21b6; }
+.model-card__provider-badge--fireworks { background: #fed7aa; color: #9a3412; }
+.model-card__provider-badge--openrouter { background: #fce7f3; color: #9d174d; }
+.model-card__provider-badge--hunyuan { background: #dbeafe; color: #1d4ed8; }
+.model-card__provider-badge--stepfun { background: #d1fae5; color: #047857; }
+.model-card__provider-badge--baichuan { background: #fef3c7; color: #b45309; }
+.model-card__provider-badge--novita { background: #e0f2fe; color: #0369a1; }
+.model-card__provider-badge--perplexity { background: #e0e7ff; color: #4338ca; }
+.model-card__provider-badge--nebius { background: #ccfbf1; color: #0f766e; }
 .model-card__provider-badge--custom { background: var(--color-bg); color: var(--color-text-secondary); }
 
 .model-card__actions {
@@ -1262,6 +1581,23 @@ const unbindScene = async (sceneCode) => {
 .provider-select__btn--active.provider-select__btn--zhipu { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
 .provider-select__btn--active.provider-select__btn--gemini { background: #dcfce7; color: #166534; border-color: #86efac; }
 .provider-select__btn--active.provider-select__btn--anthropic { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
+.provider-select__btn--active.provider-select__btn--moonshot { background: #fce7f3; color: #831843; border-color: #f9a8d4; }
+.provider-select__btn--active.provider-select__btn--minimax { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+.provider-select__btn--active.provider-select__btn--siliconflow { background: #cffafe; color: #0e7490; border-color: #22d3ee; }
+.provider-select__btn--active.provider-select__btn--qianfan { background: #dbeafe; color: #1e40af; border-color: #60a5fa; }
+.provider-select__btn--active.provider-select__btn--azure { background: #e8f5ff; color: #0369a1; border-color: #38bdf8; }
+.provider-select__btn--active.provider-select__btn--groq { background: #fef9c3; color: #854d0e; border-color: #facc15; }
+.provider-select__btn--active.provider-select__btn--mistral { background: #ffedd5; color: #9a3412; border-color: #fb923c; }
+.provider-select__btn--active.provider-select__btn--xai { background: #f3f4f6; color: #111827; border-color: #9ca3af; }
+.provider-select__btn--active.provider-select__btn--together { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+.provider-select__btn--active.provider-select__btn--fireworks { background: #fed7aa; color: #9a3412; border-color: #fdba74; }
+.provider-select__btn--active.provider-select__btn--openrouter { background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }
+.provider-select__btn--active.provider-select__btn--hunyuan { background: #dbeafe; color: #1d4ed8; border-color: #60a5fa; }
+.provider-select__btn--active.provider-select__btn--stepfun { background: #d1fae5; color: #047857; border-color: #34d399; }
+.provider-select__btn--active.provider-select__btn--baichuan { background: #fef3c7; color: #b45309; border-color: #fcd34d; }
+.provider-select__btn--active.provider-select__btn--novita { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }
+.provider-select__btn--active.provider-select__btn--perplexity { background: #e0e7ff; color: #4338ca; border-color: #a5b4fc; }
+.provider-select__btn--active.provider-select__btn--nebius { background: #ccfbf1; color: #0f766e; border-color: #2dd4bf; }
 .provider-select__btn--active.provider-select__btn--custom { background: var(--color-bg); color: var(--color-text); border-color: var(--color-text-secondary); }
 
 /* ========== 模型标识 Combobox ========== */

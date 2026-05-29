@@ -5,6 +5,9 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        # Docker Hub token endpoint is often blocked; official library mirror on AWS Public ECR.
+        # Force Hub: export TOONFLOW_NODE_IMAGE=node:20-bookworm-slim
+        NODE_IMAGE: ${TOONFLOW_NODE_IMAGE:-public.ecr.aws/docker/library/node:20-bookworm-slim}
         NUXT_PUBLIC_API_BASE: ""
         NUXT_PUBLIC_SIDEBAR_API_BASE: "https://api.zhijuu.com"
         NUXT_PUBLIC_DEPLOY_MODE: "localhost"

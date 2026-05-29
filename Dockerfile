@@ -1,4 +1,9 @@
-FROM node:20-bookworm-slim AS web-builder
+# Base image (override if registry is unreachable), e.g.:
+#   docker compose build --build-arg NODE_IMAGE=node:20-bookworm-slim
+#   docker compose build --build-arg NODE_IMAGE=registry.example.com/node:20-bookworm-slim
+ARG NODE_IMAGE=node:20-bookworm-slim
+
+FROM ${NODE_IMAGE} AS web-builder
 
 WORKDIR /app/storyweaver-web
 
@@ -20,7 +25,7 @@ ENV NUXT_PUBLIC_BAIDU_ANALYTICS_KEY=${NUXT_PUBLIC_BAIDU_ANALYTICS_KEY}
 RUN npm run generate
 
 
-FROM node:20-bookworm-slim AS api-deps
+FROM ${NODE_IMAGE} AS api-deps
 
 WORKDIR /app/storyweaver-api
 
@@ -28,7 +33,7 @@ COPY storyweaver-api/package.json storyweaver-api/package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 
-FROM node:20-bookworm-slim AS runtime
+FROM ${NODE_IMAGE} AS runtime
 
 WORKDIR /app/storyweaver-api
 
